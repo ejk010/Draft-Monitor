@@ -125,4 +125,19 @@ def send_discord_notification(message):
 
 # --- Main script ---
 if not WEBHOOK_URL:
-    print("Error: DISCORD_WEBHOOK_URL not set
+    print("Error: DISCORD_WEBHOOK_URL not set.")
+    exit()
+    
+current_status = get_draft_status()
+if not current_status:
+    print("Could not retrieve current status.")
+    exit()
+
+last_status = read_last_status()
+
+if current_status != last_status:
+    print("Change detected!")
+    send_discord_notification(f"**Draft Update:**\n{current_status}")
+    write_new_status(current_status)
+else:
+    print("No change detected.")
