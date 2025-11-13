@@ -2,7 +2,7 @@ import requests
 import os
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
-from dateutil.tz import gettz
+from dateutil.tz import gettz # <--- NEW IMPORT for Timezone Assignment
 import datetime
 import re 
 
@@ -10,18 +10,7 @@ import re
 LEAGUE_URL = "https://www.pennantchase.com/league/baseball/home?lgid=691"
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 STATUS_FILE = "last_status.txt"
-
-# --- REQUIRED: EDIT THIS MAP ---
-# Map the owner handle (from the website) to the Discord Role ID or User ID.
-# Use this format for a Role ID: <@&ROLE_ID>
-# Use this format for a User ID: <@USER_ID>
-DISCORD_ID_MAP = {
-    # EXAMPLE: Replace "bigdaddybrett05" with the actual handle for the current team owner
-    "bigdaddybrett05": "<@&123456789012345678>", 
-    "WhiteSoxOwnerHandle": "<@&987654321098765432>", 
-}
 # --- End Configuration ---
-
 
 def get_draft_status():
     try:
@@ -55,14 +44,78 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # 1. EXTRACT TEAM NAME AND HANDLE
-                    team_name_with_prefix = who_is_on_clock.removesuffix(' are on the clock.').strip()
+                    # --- ROBUST TIMEZONE FIX START ---
+                    # 1. Strip the ambiguous abbreviation (PST/PDT)
+                    date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
                     
-                    if team_name_with_prefix.startswith("The "):
-                        prefix = "The "
-                        entity_to_tag = team_name_with_prefix[len(prefix):]
-                    else:
-                        prefix = ""
-                        entity_to_tag = team_name_with_prefix
+                    # 2. Define the proper timezone object
+                    pacific_tz = gettz("America/Los_Angeles")
+                    
+                    # 3. Parse the naive time string
+                    naive_dt = parse(date_part)
+                    
+                    # 4. Make the datetime object timezone-aware
+                    aware_dt = naive_dt.replace(tzinfo=pacific_tz)
+                    
+                    # 5. Convert to Unix timestamp
+                    unix_timestamp = int(aware_dt.timestamp())
+                    # --- ROBUST TIMEZONE FIX END ---
+                    
+                    final_message = (
+                        f"{who_is_on_clock}\n"
+                        f"Next pick due: <t:{unix_timestamp}:f>"
+                    )
+                    return final_message
 
-                    owner_handle_match = re.search(r'\((.*?)\)', entity_to_
+                except Exception as e:
+                    # If this fails, it sends the raw text, which is what you are seeing.
+                    print(f"Error parsing date: {e}. Defaulting to plain text.")
+                    return extracted_text
+            
+            return extracted_text
+            # --- End of logic ---
+        else:
+            return "Draft status div not found."
+    except Exception as e:
+        print(f"Error fetching page: {e}")
+        return None
+
+# --- Rest of the file is unchanged ---
+
+def read_last_status():
+    try:
+        with open(STATUS_FILE, 'r') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+def write_new_status(status):
+    with open(STATUS_FILE, 'w') as f:
+        f.write(status)
+
+def send_discord_notification(message):
+    data = {"content": message}
+    try:
+        requests.post(WEBHOOK_URL, json=data, timeout=10)
+        print("Discord notification sent.")
+    except Exception as e:
+        print(f"Error sending Discord notification: {e}")
+
+# --- Main script ---
+if not WEBHOOK_URL:
+    print("Error: DISCORD_WEBHOOK_URL not set.")
+    exit()
+    
+current_status = get_draft_status()
+if not current_status:
+    print("Could not retrieve current status.")
+    exit()
+
+last_status = read_last_status()
+
+if current_status != last_status:
+    print("Change detected!")
+    send_discord_notification(f"**Draft Update:**\n{current_status}")
+    write_new_status(current_status)
+else:
+    print("No change detected.")
