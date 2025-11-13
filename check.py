@@ -10,7 +10,19 @@ import re
 LEAGUE_URL = "https://www.pennantchase.com/league/baseball/home?lgid=691"
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 STATUS_FILE = "last_status.txt"
+
+# --- REQUIRED: EDIT THIS MAP ---
+# Map the owner handle (from the website) to the Discord Role ID or User ID.
+# Format for Role ID: <@&ROLE_ID>
+# Format for User ID: <@USER_ID>
+DISCORD_ID_MAP = {
+    # Replace the example IDs with the actual IDs from your server
+    "bigdaddybrett05": "<@&123456789012345678>", # Example Role ID for Giants owner
+    "White Sox": "<@Chicago White Sox>",    # Example User ID for another owner
+    "ownerhandle3": "@Draft",                     # Example of a hardcoded text tag for testing
+}
 # --- End Configuration ---
+
 
 def get_draft_status():
     try:
@@ -44,8 +56,11 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # 1. EXTRACT TEAM NAME FOR TAGGING (NEW LOGIC)
+                    # 1. EXTRACT OWNER HANDLE AND TEAM NAME
                     team_name_with_prefix = who_is_on_clock.removesuffix(' are on the clock.').strip()
+                    
+                    # Use regex to find the owner handle inside parentheses (e.g., bigdaddybrett05)
+                    owner_handle_match = re.search(r'\((.*?)\)', team_name_with_prefix)
 
                     if team_name_with_prefix.startswith("The "):
                         prefix = "The "
@@ -54,17 +69,25 @@ def get_draft_status():
                         prefix = ""
                         entity_to_tag = team_name_with_prefix
                     
-                    # 2. ROBUST TIMEZONE PARSING
+                    # 2. PERFORM ID LOOKUP
+                    mention = f"@{entity_to_tag}" # Default to name if handle not found
+                    
+                    if owner_handle_match:
+                        owner_handle = owner_handle_match.group(1)
+                        # Look up the ID in the dictionary
+                        mention = DISCORD_ID_MAP.get(owner_handle, f"@{entity_to_tag}")
+                    
+                    # 3. ROBUST TIMEZONE PARSING
                     date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
                     pacific_tz = gettz("America/Los_Angeles")
                     naive_dt = parse(date_part)
                     aware_dt = naive_dt.replace(tzinfo=pacific_tz)
                     unix_timestamp = int(aware_dt.timestamp())
                     
-                    # 3. BUILD THE FINAL MESSAGE WITH TAGGING (MODIFIED)
+                    # 4. BUILD THE FINAL MESSAGE WITH TAGGING
                     final_message = (
-                        # Example Output: **The @Giants (bigdaddybrett05) is on the clock!**
-                        f"{prefix}@{entity_to_tag} is on the clock!\n"
+                        # Note: mention is now an ID (e.g., <@&ID>) or plain text (@Name)
+                        f"**{prefix}{mention} is on the clock!**\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
