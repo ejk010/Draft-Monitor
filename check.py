@@ -1,6 +1,8 @@
 import requests
 import os
 from bs4 import BeautifulSoup
+from dateutil.parser import parse  # We are adding this new library
+import datetime
 
 # --- Configuration ---
 LEAGUE_URL = "https://www.pennantchase.com/league/baseball/home?lgid=691"
@@ -15,78 +17,49 @@ def get_draft_status():
         r.raise_for_status()
         
         soup = BeautifulSoup(r.text, 'html.parser')
-        # Find the div by its class
         status_div = soup.find("div", {"class": "alert-info"})
         
         if status_div:
-            # Get all text from the div, stripping whitespace
             full_text = status_div.get_text(strip=True)
             
-            # Define the start and end markers for the text we want
+            # --- Start of new logic ---
             start_marker = "is currently open."
             end_marker = "Note, auto picks"
             
-            # Find the start position
             start_index = full_text.find(start_marker)
-            if start_index == -1:
-                # Fallback in case text changes, send the whole thing
-                print("Warning: Could not find start marker, sending full text.")
-                return full_text
-            
-            # Find the end position
             end_index = full_text.find(end_marker)
-            if end_index == -1:
-                # Fallback in case text changes, send the whole thing
-                print("Warning: Could not find end marker, sending full text.")
+            
+            if start_index == -1 or end_index == -1:
+                print("Warning: Could not find markers, sending full text.")
                 return full_text
             
-            # Extract the text between the markers
-            # We add len(start_marker) to start *after* the marker
-            extracted_text = full_text[start_index + len(start_marker) : end_index]
+            extracted_text = full_text[start_index + len(start_marker) : end_index].strip()
             
-            # Return the cleaned-up text
-            return extracted_text.strip()
-        else:
-            return "Draft status div not found."
-    except Exception as e:
-        print(f"Error fetching page: {e}")
-        return None
+            # Now, we parse the date from the extracted text
+            anchor = "Next pick due on"
+            if anchor in extracted_text:
+                try:
+                    # Split the string into "who is on the clock" and "the date string"
+                    parts = extracted_text.split(anchor)
+                    who_is_on_clock = parts[0].strip()
+                    date_string = parts[1].strip().strip('.') # Get "11/13/2025 at 8:56 PM PST"
+                    
+                    # Use dateutil.parser to "understand" the date string
+                    # This is the magic part that handles "PST"
+                    due_datetime = parse(date_string)
+                    
+                    # Convert the datetime object to a Unix timestamp (an integer)
+                    unix_timestamp = int(due_datetime.timestamp())
+                    
+                    # Build the new message with Discord's timestamp format
+                    # <t:TIMESTAMP:f> = Full Date (e.g., November 13, 2025 at 10:56 PM)
+                    # <t:TIMESTAMP:R> = Relative Time (e.g., in 2 hours)
+                    final_message = (
+                        f"{who_is_on_clock}\n"
+                        f"Next pick due: <t:{unix_timestamp}:f> (which is <t:{unix_timestamp}:R>)"
+                    )
+                    return final_message
 
-def read_last_status():
-    try:
-        with open(STATUS_FILE, 'r') as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return ""
-
-def write_new_status(status):
-    with open(STATUS_FILE, 'w') as f:
-        f.write(status)
-
-def send_discord_notification(message):
-    data = {"content": message}
-    try:
-        requests.post(WEBHOOK_URL, json=data, timeout=10)
-        print("Discord notification sent.")
-    except Exception as e:
-        print(f"Error sending Discord notification: {e}")
-
-# --- Main script ---
-if not WEBHOOK_URL:
-    print("Error: DISCORD_WEBHOOK_URL not set.")
-    exit()
-    
-current_status = get_draft_status()
-if not current_status:
-    print("Could not retrieve current status.")
-    exit()
-
-last_status = read_last_status()
-
-if current_status != last_status:
-    print("Change detected!")
-    # We add a nice header to the clean message
-    send_discord_notification(f"**Draft Update:**\n{current_status}")
-    write_new_status(current_status)
-else:
-    print("No change detected.")
+                except Exception as e:
+                    print(f"Error parsing date: {e}. Defaulting to plain text.")
+                    return extracted_text
