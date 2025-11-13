@@ -18,7 +18,7 @@ STATUS_FILE = "last_status.txt"
 DISCORD_ID_MAP = {
     # EXAMPLE: Replace "bigdaddybrett05" with the actual handle for the current team owner
     "bigdaddybrett05": "<@&123456789012345678>", 
-    "White Sox": "<@&1438619550559240314>", 
+    "White Sox": "<@&987654321098765432>", 
 }
 # --- End Configuration ---
 
@@ -55,10 +55,9 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # 1. EXTRACT TEAM NAME AND HANDLE
+                    # 1. EXTRACT TEAM NAME, OWNER HANDLE, AND PREFIX
                     team_name_with_prefix = who_is_on_clock.removesuffix(' are on the clock.').strip()
                     
-                    # Split 'The Giants (handle)' into 'The ' and 'Giants (handle)'
                     if team_name_with_prefix.startswith("The "):
                         prefix = "The "
                         entity_to_tag = team_name_with_prefix[len(prefix):]
@@ -66,14 +65,19 @@ def get_draft_status():
                         prefix = ""
                         entity_to_tag = team_name_with_prefix
 
-                    # Use regex to find the owner handle inside parentheses (e.g., bigdaddybrett05)
+                    # Use regex to find the owner handle inside parentheses (e.g., (bigdaddybrett05))
                     owner_handle_match = re.search(r'\((.*?)\)', entity_to_tag)
                     
                     # 2. PERFORM ID LOOKUP
-                    mention = f"@{entity_to_tag}" # Default to name if ID not found
+                    # Default mention uses the full entity name (e.g., @Giants (handle))
+                    mention = f"@{entity_to_tag}" 
+                    owner_handle_for_display = "" # Default to empty if no parenthesis found
+
                     if owner_handle_match:
-                        owner_handle = owner_handle_match.group(1)
-                        # Look up the ID in the dictionary; use the default if key is missing
+                        owner_handle = owner_handle_match.group(1) # The handle for the dictionary key
+                        owner_handle_for_display = owner_handle_match.group(0) # The handle for display: (bigdaddybrett05)
+                        
+                        # Look up the ID; use the full team name as fallback text if key is missing
                         mention = DISCORD_ID_MAP.get(owner_handle, f"@{entity_to_tag}")
                     
                     # 3. ROBUST TIMEZONE PARSING
@@ -84,8 +88,9 @@ def get_draft_status():
                     unix_timestamp = int(aware_dt.timestamp())
                     
                     # 4. BUILD THE FINAL MESSAGE WITH TAGGING
+                    # Output: **The <@&ROLE_ID> (bigdaddybrett05) is on the clock!**
                     final_message = (
-                        f"**{prefix}{mention} is on the clock!**\n"
+                        f"**{prefix}{mention} {owner_handle_for_display} is on the clock!**\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
