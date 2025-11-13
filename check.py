@@ -18,7 +18,7 @@ STATUS_FILE = "last_status.txt"
 DISCORD_ID_MAP = {
     # EXAMPLE: Replace "bigdaddybrett05" with the actual handle for the current team owner
     "bigdaddybrett05": "<@&123456789012345678>", 
-    "White Sox": "<@&987654321098765432>", 
+    "WhiteSoxOwnerHandle": "<@&987654321098765432>", 
 }
 # --- End Configuration ---
 
@@ -55,7 +55,7 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # 1. EXTRACT TEAM NAME, OWNER HANDLE, AND PREFIX
+                    # 1. EXTRACT TEAM NAME AND HANDLE
                     team_name_with_prefix = who_is_on_clock.removesuffix(' are on the clock.').strip()
                     
                     if team_name_with_prefix.startswith("The "):
@@ -65,84 +65,4 @@ def get_draft_status():
                         prefix = ""
                         entity_to_tag = team_name_with_prefix
 
-                    # Use regex to find the owner handle inside parentheses (e.g., (bigdaddybrett05))
-                    owner_handle_match = re.search(r'\((.*?)\)', entity_to_tag)
-                    
-                    # 2. PERFORM ID LOOKUP
-                    # Default mention uses the full entity name (e.g., @Giants (handle))
-                    mention = f"@{entity_to_tag}" 
-                    owner_handle_for_display = "" # Default to empty if no parenthesis found
-
-                    if owner_handle_match:
-                        owner_handle = owner_handle_match.group(1) # The handle for the dictionary key
-                        owner_handle_for_display = owner_handle_match.group(0) # The handle for display: (bigdaddybrett05)
-                        
-                        # Look up the ID; use the full team name as fallback text if key is missing
-                        mention = DISCORD_ID_MAP.get(owner_handle, f"@{entity_to_tag}")
-                    
-                    # 3. ROBUST TIMEZONE PARSING
-                    date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
-                    pacific_tz = gettz("America/Los_Angeles")
-                    naive_dt = parse(date_part)
-                    aware_dt = naive_dt.replace(tzinfo=pacific_tz)
-                    unix_timestamp = int(aware_dt.timestamp())
-                    
-                    # 4. BUILD THE FINAL MESSAGE WITH TAGGING
-                    # Output: **The <@&ROLE_ID> (bigdaddybrett05) is on the clock!**
-                    final_message = (
-                        f"**{prefix}{mention} {owner_handle_for_display} is on the clock!**\n"
-                        f"Next pick due: <t:{unix_timestamp}:f>"
-                    )
-                    return final_message
-
-                except Exception as e:
-                    print(f"Error parsing date: {e}. Defaulting to plain text.")
-                    return extracted_text
-            
-            return extracted_text
-            # --- End of logic ---
-        else:
-            return "Draft status div not found."
-    except Exception as e:
-        print(f"Error fetching page: {e}")
-        return None
-
-# --- Remaining Functions (No Changes) ---
-
-def read_last_status():
-    try:
-        with open(STATUS_FILE, 'r') as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return ""
-
-def write_new_status(status):
-    with open(STATUS_FILE, 'w') as f:
-        f.write(status)
-
-def send_discord_notification(message):
-    data = {"content": message}
-    try:
-        requests.post(WEBHOOK_URL, json=data, timeout=10)
-        print("Discord notification sent.")
-    except Exception as e:
-        print(f"Error sending Discord notification: {e}")
-
-# --- Main script ---
-if not WEBHOOK_URL:
-    print("Error: DISCORD_WEBHOOK_URL not set.")
-    exit()
-    
-current_status = get_draft_status()
-if not current_status:
-    print("Could not retrieve current status.")
-    exit()
-
-last_status = read_last_status()
-
-if current_status != last_status:
-    print("Change detected!")
-    send_discord_notification(f"**Draft Update:**\n{current_status}")
-    write_new_status(current_status)
-else:
-    print("No change detected.")
+                    owner_handle_match = re.search(r'\((.*?)\)', entity_to_
