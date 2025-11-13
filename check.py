@@ -1,7 +1,7 @@
 import requests
 import os
 from bs4 import BeautifulSoup
-from dateutil.parser import parse  # We are adding this new library
+from dateutil.parser import parse
 import datetime
 
 # --- Configuration ---
@@ -32,77 +32,3 @@ def get_draft_status():
             if start_index == -1 or end_index == -1:
                 print("Warning: Could not find markers, sending full text.")
                 return full_text
-            
-            extracted_text = full_text[start_index + len(start_marker) : end_index].strip()
-            
-            anchor = "Next pick due on"
-            if anchor in extracted_text:
-                try:
-                    # Split the string into "who is on the clock" and "the date string"
-                    parts = extracted_text.split(anchor)
-                    who_is_on_clock = parts[0].strip()
-                    date_string = parts[1].strip().strip('.') # Get "11/13/2025 at 8:56 PM PST"
-                    
-                    due_datetime = parse(date_string)
-                    
-                    unix_timestamp = int(due_datetime.timestamp())
-                    
-                    # --- THIS IS THE MODIFIED LINE ---
-                    # We removed the relative time part " (which is <t:{unix_timestamp}:R>)"
-                    final_message = (
-                        f"{who_is_on_clock}\n"
-                        f"Next pick due: <t:{unix_timestamp}:f>"
-                    )
-                    return final_message
-
-                except Exception as e:
-                    print(f"Error parsing date: {e}. Defaulting to plain text.")
-                    return extracted_text # Fallback to old text if parsing fails
-            
-            return extracted_text # Fallback if "Next pick due on" isn't found
-            # --- End of logic ---
-        else:
-            return "Draft status div not found."
-    except Exception as e:
-        print(f"Error fetching page: {e}")
-        return None
-
-# --- No changes to the functions below this line ---
-
-def read_last_status():
-    try:
-        with open(STATUS_FILE, 'r') as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return ""
-
-def write_new_status(status):
-with open(STATUS_FILE, 'w') as f:
-        f.write(status)
-
-def send_discord_notification(message):
-    data = {"content": message}
-    try:
-        requests.post(WEBHOOK_URL, json=data, timeout=10)
-        print("Discord notification sent.")
-    except Exception as e:
-        print(f"Error sending Discord notification: {e}")
-
-# --- Main script ---
-if not WEBHOOK_URL:
-    print("Error: DISCORD_WEBHOOK_URL not set.")
-    exit()
-    
-current_status = get_draft_status()
-if not current_status:
-    print("Could not retrieve current status.")
-    exit()
-
-last_status = read_last_status()
-
-if current_status != last_status:
-    print("Change detected!")
-    send_discord_notification(f"**Draft Update:**\n{current_status}")
-    write_new_status(current_status)
-else:
-    print("No change detected.")
