@@ -2,7 +2,7 @@ import requests
 import os
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
-from dateutil.tz import gettz # <--- NEW IMPORT for Timezone Assignment
+from dateutil.tz import gettz
 import datetime
 import re 
 
@@ -44,78 +44,25 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # --- ROBUST TIMEZONE FIX START ---
-                    # 1. Strip the ambiguous abbreviation (PST/PDT)
+                    # 1. EXTRACT TEAM NAME FOR TAGGING
+                    # who_is_on_clock is "The Giants (bigdaddybrett05) are on the clock."
+                    # We remove the suffix to isolate the taggable entity.
+                    team_name = who_is_on_clock.removesuffix(' are on the clock.').strip()
+                    
+                    # 2. DYNAMIC TIMEZONE FIX
                     date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
-                    
-                    # 2. Define the proper timezone object
                     pacific_tz = gettz("America/Los_Angeles")
-                    
-                    # 3. Parse the naive time string
                     naive_dt = parse(date_part)
-                    
-                    # 4. Make the datetime object timezone-aware
                     aware_dt = naive_dt.replace(tzinfo=pacific_tz)
-                    
-                    # 5. Convert to Unix timestamp
                     unix_timestamp = int(aware_dt.timestamp())
-                    # --- ROBUST TIMEZONE FIX END ---
                     
+                    # 3. BUILD THE FINAL MESSAGE WITH TAGGING
                     final_message = (
-                        f"{who_is_on_clock}\n"
+                        # Note: The mention only works if a role/user has the exact name.
+                        f"**@{team_name} is on the clock!**\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
 
                 except Exception as e:
-                    # If this fails, it sends the raw text, which is what you are seeing.
-                    print(f"Error parsing date: {e}. Defaulting to plain text.")
-                    return extracted_text
-            
-            return extracted_text
-            # --- End of logic ---
-        else:
-            return "Draft status div not found."
-    except Exception as e:
-        print(f"Error fetching page: {e}")
-        return None
-
-# --- Rest of the file is unchanged ---
-
-def read_last_status():
-    try:
-        with open(STATUS_FILE, 'r') as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return ""
-
-def write_new_status(status):
-    with open(STATUS_FILE, 'w') as f:
-        f.write(status)
-
-def send_discord_notification(message):
-    data = {"content": message}
-    try:
-        requests.post(WEBHOOK_URL, json=data, timeout=10)
-        print("Discord notification sent.")
-    except Exception as e:
-        print(f"Error sending Discord notification: {e}")
-
-# --- Main script ---
-if not WEBHOOK_URL:
-    print("Error: DISCORD_WEBHOOK_URL not set.")
-    exit()
-    
-current_status = get_draft_status()
-if not current_status:
-    print("Could not retrieve current status.")
-    exit()
-
-last_status = read_last_status()
-
-if current_status != last_status:
-    print("Change detected!")
-    send_discord_notification(f"**Draft Update:**\n{current_status}")
-    write_new_status(current_status)
-else:
-    print("No change detected.")
+                    print(f"Error parsing date: {e}. Defaulting
