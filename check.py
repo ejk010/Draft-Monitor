@@ -38,10 +38,15 @@ def get_draft_status():
             anchor = "Next pick due on"
             if anchor in extracted_text:
                 try:
-                    # Split the string into "who is on the clock" and "the date string"
                     parts = extracted_text.split(anchor)
                     who_is_on_clock = parts[0].strip()
-                    date_string = parts[1].strip().strip('.') # Get "11/13/2025 at 8:56 PM PST"
+                    date_string = parts[1].strip().strip('.')
+                    
+                    # --- FIX START: Replace ambiguous PST with explicit UTC offset ---
+                    if date_string.endswith("PST"):
+                        # Pacific Standard Time is UTC-8. This forces correct interpretation.
+                        date_string = date_string.replace("PST", "-0800")
+                    # --- FIX END ---
                     
                     due_datetime = parse(date_string)
                     
@@ -55,9 +60,9 @@ def get_draft_status():
 
                 except Exception as e:
                     print(f"Error parsing date: {e}. Defaulting to plain text.")
-                    return extracted_text # Fallback to old text if parsing fails
+                    return extracted_text
             
-            return extracted_text # Fallback if "Next pick due on" isn't found
+            return extracted_text
             # --- End of logic ---
         else:
             return "Draft status div not found."
@@ -65,7 +70,7 @@ def get_draft_status():
         print(f"Error fetching page: {e}")
         return None
 
-# --- No changes to the functions below this line ---
+# --- Rest of the file is unchanged ---
 
 def read_last_status():
     try:
@@ -74,11 +79,9 @@ def read_last_status():
     except FileNotFoundError:
         return ""
 
-# --- THIS BLOCK IS NOW CORRECTLY INDENTED ---
 def write_new_status(status):
     with open(STATUS_FILE, 'w') as f:
         f.write(status)
-# ---------------------------------------------
 
 def send_discord_notification(message):
     data = {"content": message}
@@ -104,3 +107,5 @@ if current_status != last_status:
     print("Change detected!")
     send_discord_notification(f"**Draft Update:**\n{current_status}")
     write_new_status(current_status)
+else:
+    print("No change detected.")
