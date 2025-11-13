@@ -10,6 +10,17 @@ import re
 LEAGUE_URL = "https://www.pennantchase.com/league/baseball/home?lgid=691"
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 STATUS_FILE = "last_status.txt"
+
+# --- REQUIRED: EDIT THIS MAP ---
+# Map the team name (from the website) to its Discord Role ID.
+# Format for Role ID: <@&ROLE_ID>
+TEAM_NAME_MAP = {
+    # Examples:
+    "Giants": "<@&123456789012345678>",
+    "White Sox": "<@&1438619550559240314>",
+    "Dodgers": "<@&...>",
+    # ... add all 30 teams here ...
+}
 # --- End Configuration ---
 
 def get_draft_status():
@@ -44,31 +55,46 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
+                    # --- NEW LOGIC FOR TAGGING ---
+                    # 1. Isolate the full team/owner string
+                    #    e.g., "The Giants (bigdaddybrett05) are on the clock."
+                    team_owner_string = who_is_on_clock.removesuffix(' are on the clock.').strip()
+                    
+                    # 2. Extract parts
+                    prefix = ""
+                    if team_owner_string.startswith("The "):
+                        prefix = "The "
+                    
+                    owner_handle_match = re.search(r'\((.*?)\)', team_owner_string)
+                    owner_handle_display = ""
+                    if owner_handle_match:
+                        owner_handle_display = owner_handle_match.group(0) # e.g., "(bigdaddybrett05)"
+
+                    # 3. Get the clean team name
+                    #    "The Giants (bigdaddybrett05)" -> "Giants"
+                    team_name = team_owner_string.removeprefix(prefix).removesuffix(owner_handle_display).strip()
+
+                    # 4. Look up the Role ID
+                    #    If "Giants" is in the map, use the ID. If not, use plain text.
+                    mention = TEAM_NAME_MAP.get(team_name, f"@{team_name}")
+                    # --- END NEW LOGIC ---
+                    
                     # --- ROBUST TIMEZONE FIX START ---
-                    # 1. Strip the ambiguous abbreviation (PST/PDT)
                     date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
-                    
-                    # 2. Define the proper timezone object
                     pacific_tz = gettz("America/Los_Angeles")
-                    
-                    # 3. Parse the naive time string
                     naive_dt = parse(date_part)
-                    
-                    # 4. Make the datetime object timezone-aware
                     aware_dt = naive_dt.replace(tzinfo=pacific_tz)
-                    
-                    # 5. Convert to Unix timestamp
                     unix_timestamp = int(aware_dt.timestamp())
                     # --- ROBUST TIMEZONE FIX END ---
                     
+                    # --- MODIFIED FINAL MESSAGE ---
                     final_message = (
-                        f"{who_is_on_clock}\n"
+                        f"**{prefix}{mention} {owner_handle_display} is on the clock!**\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
 
                 except Exception as e:
-                    # If this fails, it sends the raw text, which is what you are seeing.
                     print(f"Error parsing date: {e}. Defaulting to plain text.")
                     return extracted_text
             
