@@ -3,7 +3,7 @@ import os
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 import datetime
-import re # <-- NEW IMPORT
+import re 
 
 # --- Configuration ---
 LEAGUE_URL = "https://www.pennantchase.com/league/baseball/home?lgid=691"
@@ -43,11 +43,14 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # --- DYNAMIC TIMEZONE FIX START ---
-                    # 1. Use regex to find the timezone abbreviation (PST or PDT) at the end.
-                    # 2. Replace it with the full, unambiguous IANA timezone name.
-                    # This allows dateutil to correctly handle DST based on the date.
-                    date_string = re.sub(r'\s(P[SD]T)$', r' America/Los_Angeles', date_string)
+                    # --- DYNAMIC TIMEZONE FIX START (Simplified) ---
+                    # Replace the ambiguous abbreviation with the full name.
+                    if date_string.endswith("PST"):
+                        date_string = date_string.replace("PST", "America/Los_Angeles")
+                    elif date_string.endswith("PDT"):
+                        date_string = date_string.replace("PDT", "America/Los_Angeles")
+                    # If the website uses a different abbreviation, dateutil might figure it out, 
+                    # but this covers PST/PDT explicitly.
                     # --- DYNAMIC TIMEZONE FIX END ---
                     
                     due_datetime = parse(date_string)
@@ -62,6 +65,7 @@ def get_draft_status():
 
                 except Exception as e:
                     print(f"Error parsing date: {e}. Defaulting to plain text.")
+                    # If parsing fails, the original unparsed string is returned
                     return extracted_text
             
             return extracted_text
