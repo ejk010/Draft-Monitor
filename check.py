@@ -44,8 +44,15 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # 1. EXTRACT TEAM NAME FOR TAGGING
-                    team_name = who_is_on_clock.removesuffix(' are on the clock.').strip()
+                    # 1. EXTRACT TEAM NAME FOR TAGGING (NEW LOGIC)
+                    team_name_with_prefix = who_is_on_clock.removesuffix(' are on the clock.').strip()
+
+                    if team_name_with_prefix.startswith("The "):
+                        prefix = "The "
+                        entity_to_tag = team_name_with_prefix[len(prefix):]
+                    else:
+                        prefix = ""
+                        entity_to_tag = team_name_with_prefix
                     
                     # 2. ROBUST TIMEZONE PARSING
                     date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
@@ -54,16 +61,16 @@ def get_draft_status():
                     aware_dt = naive_dt.replace(tzinfo=pacific_tz)
                     unix_timestamp = int(aware_dt.timestamp())
                     
-                    # 3. BUILD THE FINAL MESSAGE WITH TAGGING AND TIME
+                    # 3. BUILD THE FINAL MESSAGE WITH TAGGING (MODIFIED)
                     final_message = (
-                        f"**@**{team_name} **is on the clock!**\n"
+                        # Example Output: **The @Giants (bigdaddybrett05) is on the clock!**
+                        f"**{prefix}@{entity_to_tag} is on the clock!**\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
 
                 except Exception as e:
                     print(f"Error parsing date: {e}. Defaulting to plain text.")
-                    # If any parsing fails, it sends the unparsed text.
                     return extracted_text
             
             return extracted_text
@@ -73,6 +80,8 @@ def get_draft_status():
     except Exception as e:
         print(f"Error fetching page: {e}")
         return None
+
+# --- Rest of the file is unchanged ---
 
 def read_last_status():
     try:
