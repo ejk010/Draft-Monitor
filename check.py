@@ -2,6 +2,7 @@ import requests
 import os
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
+from dateutil.tz import gettz # <--- NEW IMPORT for Timezone Assignment
 import datetime
 import re 
 
@@ -43,19 +44,22 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # --- DYNAMIC TIMEZONE FIX START (Simplified) ---
-                    # Replace the ambiguous abbreviation with the full name.
-                    if date_string.endswith("PST"):
-                        date_string = date_string.replace("PST", "America/Los_Angeles")
-                    elif date_string.endswith("PDT"):
-                        date_string = date_string.replace("PDT", "America/Los_Angeles")
-                    # If the website uses a different abbreviation, dateutil might figure it out, 
-                    # but this covers PST/PDT explicitly.
-                    # --- DYNAMIC TIMEZONE FIX END ---
+                    # --- ROBUST TIMEZONE FIX START ---
+                    # 1. Strip the ambiguous abbreviation (PST/PDT)
+                    date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
                     
-                    due_datetime = parse(date_string)
+                    # 2. Define the proper timezone object
+                    pacific_tz = gettz("America/Los_Angeles")
                     
-                    unix_timestamp = int(due_datetime.timestamp())
+                    # 3. Parse the naive time string
+                    naive_dt = parse(date_part)
+                    
+                    # 4. Make the datetime object timezone-aware
+                    aware_dt = naive_dt.replace(tzinfo=pacific_tz)
+                    
+                    # 5. Convert to Unix timestamp
+                    unix_timestamp = int(aware_dt.timestamp())
+                    # --- ROBUST TIMEZONE FIX END ---
                     
                     final_message = (
                         f"{who_is_on_clock}\n"
@@ -64,8 +68,8 @@ def get_draft_status():
                     return final_message
 
                 except Exception as e:
+                    # If this fails, it sends the raw text, which is what you are seeing.
                     print(f"Error parsing date: {e}. Defaulting to plain text.")
-                    # If parsing fails, the original unparsed string is returned
                     return extracted_text
             
             return extracted_text
