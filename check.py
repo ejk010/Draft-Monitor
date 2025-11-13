@@ -13,13 +13,12 @@ STATUS_FILE = "last_status.txt"
 
 # --- REQUIRED: EDIT THIS MAP ---
 # Map the owner handle (from the website) to the Discord Role ID or User ID.
-# Format for Role ID: <@&ROLE_ID>
-# Format for User ID: <@USER_ID>
+# Use this format for a Role ID: <@&ROLE_ID>
+# Use this format for a User ID: <@USER_ID>
 DISCORD_ID_MAP = {
-    # Replace the example IDs with the actual IDs from your server
-    "bigdaddybrett05": "<@&123456789012345678>", # Example Role ID for Giants owner
-    "White Sox": "<@&1438619550559240314>",    # Example User ID for another owner
-    "ownerhandle3": "@Draft",                     # Example of a hardcoded text tag for testing
+    # EXAMPLE: Replace "bigdaddybrett05" with the actual handle for the current team owner
+    "bigdaddybrett05": "<@&123456789012345678>", 
+    "White Sox": "<@&1438619550559240314>", 
 }
 # --- End Configuration ---
 
@@ -56,25 +55,25 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # 1. EXTRACT OWNER HANDLE AND TEAM NAME
+                    # 1. EXTRACT TEAM NAME AND HANDLE
                     team_name_with_prefix = who_is_on_clock.removesuffix(' are on the clock.').strip()
                     
-                    # Use regex to find the owner handle inside parentheses (e.g., bigdaddybrett05)
-                    owner_handle_match = re.search(r'\((.*?)\)', team_name_with_prefix)
-
+                    # Split 'The Giants (handle)' into 'The ' and 'Giants (handle)'
                     if team_name_with_prefix.startswith("The "):
                         prefix = "The "
                         entity_to_tag = team_name_with_prefix[len(prefix):]
                     else:
                         prefix = ""
                         entity_to_tag = team_name_with_prefix
+
+                    # Use regex to find the owner handle inside parentheses (e.g., bigdaddybrett05)
+                    owner_handle_match = re.search(r'\((.*?)\)', entity_to_tag)
                     
                     # 2. PERFORM ID LOOKUP
-                    mention = f"@{entity_to_tag}" # Default to name if handle not found
-                    
+                    mention = f"@{entity_to_tag}" # Default to name if ID not found
                     if owner_handle_match:
                         owner_handle = owner_handle_match.group(1)
-                        # Look up the ID in the dictionary
+                        # Look up the ID in the dictionary; use the default if key is missing
                         mention = DISCORD_ID_MAP.get(owner_handle, f"@{entity_to_tag}")
                     
                     # 3. ROBUST TIMEZONE PARSING
@@ -86,8 +85,7 @@ def get_draft_status():
                     
                     # 4. BUILD THE FINAL MESSAGE WITH TAGGING
                     final_message = (
-                        # Note: mention is now an ID (e.g., <@&ID>) or plain text (@Name)
-                        f"{prefix}{mention} is on the clock!\n"
+                        f"**{prefix}{mention} is on the clock!**\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
@@ -104,7 +102,7 @@ def get_draft_status():
         print(f"Error fetching page: {e}")
         return None
 
-# --- Rest of the file is unchanged ---
+# --- Remaining Functions (No Changes) ---
 
 def read_last_status():
     try:
@@ -127,19 +125,4 @@ def send_discord_notification(message):
 
 # --- Main script ---
 if not WEBHOOK_URL:
-    print("Error: DISCORD_WEBHOOK_URL not set.")
-    exit()
-    
-current_status = get_draft_status()
-if not current_status:
-    print("Could not retrieve current status.")
-    exit()
-
-last_status = read_last_status()
-
-if current_status != last_status:
-    print("Change detected!")
-    send_discord_notification(f"**Draft Update:**\n{current_status}")
-    write_new_status(current_status)
-else:
-    print("No change detected.")
+    print("Error: DISCORD_WEBHOOK_URL not set
