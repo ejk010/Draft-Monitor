@@ -18,7 +18,7 @@ STATUS_FILE = "last_status.txt"
 DISCORD_ID_MAP = {
     # Replace the example IDs with the actual IDs from your server
     "bigdaddybrett05": "<@&123456789012345678>", # Example Role ID for Giants owner
-    "White Sox": "<@Chicago White Sox>",    # Example User ID for another owner
+    "White Sox": "<@1438619550559240314>",    # Example User ID for another owner
     "ownerhandle3": "@Draft",                     # Example of a hardcoded text tag for testing
 }
 # --- End Configuration ---
