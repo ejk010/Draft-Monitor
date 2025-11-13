@@ -3,6 +3,7 @@ import os
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 import datetime
+import re # <-- NEW IMPORT
 
 # --- Configuration ---
 LEAGUE_URL = "https://www.pennantchase.com/league/baseball/home?lgid=691"
@@ -42,11 +43,12 @@ def get_draft_status():
                     who_is_on_clock = parts[0].strip()
                     date_string = parts[1].strip().strip('.')
                     
-                    # --- FIX START: Replace ambiguous PST with explicit UTC offset ---
-                    if date_string.endswith("PST"):
-                        # Pacific Standard Time is UTC-8. This forces correct interpretation.
-                        date_string = date_string.replace("PST", "-0800")
-                    # --- FIX END ---
+                    # --- DYNAMIC TIMEZONE FIX START ---
+                    # 1. Use regex to find the timezone abbreviation (PST or PDT) at the end.
+                    # 2. Replace it with the full, unambiguous IANA timezone name.
+                    # This allows dateutil to correctly handle DST based on the date.
+                    date_string = re.sub(r'\s(P[SD]T)$', r' America/Los_Angeles', date_string)
+                    # --- DYNAMIC TIMEZONE FIX END ---
                     
                     due_datetime = parse(date_string)
                     
