@@ -64,7 +64,7 @@ def get_draft_status():
                     # 3. BUILD THE FINAL MESSAGE WITH TAGGING (MODIFIED)
                     final_message = (
                         # Example Output: **The @Giants (bigdaddybrett05) is on the clock!**
-                        f"**{prefix}@{entity_to_tag} is on the clock!**\n"
+                        f"{prefix}@{entity_to_tag} is on the clock!\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
