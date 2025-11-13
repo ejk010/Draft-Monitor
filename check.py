@@ -87,7 +87,7 @@ def get_draft_status():
                     # 4. BUILD THE FINAL MESSAGE WITH TAGGING
                     final_message = (
                         # Note: mention is now an ID (e.g., <@&ID>) or plain text (@Name)
-                        f"**{prefix}{mention} is on the clock!**\n"
+                        f"{prefix}{mention} is on the clock!\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
