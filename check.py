@@ -15,7 +15,6 @@ STATUS_FILE = "last_status.txt"
 # Map the team name (from the website) to its Discord Role ID.
 # Format for Role ID: <@&ROLE_ID>
 TEAM_NAME_MAP = {
-    # Examples:
     "Diamondbacks": "<@&773898276940152833>",
     "Braves": "<@&622615242978885632>",
     "Orioles": "<@&728717530096468149>",
@@ -66,7 +65,6 @@ def get_draft_status():
             
             start_index = full_text.find(start_marker)
             
-            # --- MODIFIED LOGIC HERE ---
             # If we can't find the start marker, fail.
             if start_index == -1:
                 print("Warning: Could not find start marker, sending full text.")
@@ -74,7 +72,6 @@ def get_draft_status():
             
             # We no longer need an end_marker. We'll parse everything AFTER the start_marker.
             extracted_text = full_text[start_index + len(start_marker) :].strip()
-            # extracted_text is now: "The Reds (pantherking21) are on the clock.Next pick due on 11/14/2025 at 8:55 AM PST."
             
             anchor = "Next pick due on"
             if anchor in extracted_text:
