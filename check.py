@@ -116,7 +116,7 @@ def get_draft_status():
                     
                     # --- MODIFIED FINAL MESSAGE ---
                     final_message = (
-                        f"{prefix}{mention} {owner_handle_display} are on the clock!\n"
+                        f"**{prefix}{mention} {owner_handle_display} is on the clock!**\n"
                         f"Next pick due: <t:{unix_timestamp}:f>"
                     )
                     return final_message
