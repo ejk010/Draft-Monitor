@@ -1,4 +1,3 @@
-# Waking up the scheduler
 import requests
 import os
 from bs4 import BeautifulSoup
@@ -13,8 +12,6 @@ WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 STATUS_FILE = "last_status.txt"
 
 # --- REQUIRED: EDIT THIS MAP ---
-# Map the team name (from the website) to its Discord Role ID.
-# Format for Role ID: <@&ROLE_ID>
 TEAM_NAME_MAP = {
     "Diamondbacks": "<@&773898276940152833>",
     "Braves": "<@&622615242978885632>",
@@ -66,12 +63,10 @@ def get_draft_status():
             
             start_index = full_text.find(start_marker)
             
-            # If we can't find the start marker, fail.
             if start_index == -1:
                 print("Warning: Could not find start marker, sending full text.")
                 return full_text
             
-            # We no longer need an end_marker. We'll parse everything AFTER the start_marker.
             extracted_text = full_text[start_index + len(start_marker) :].strip()
             
             anchor = "Next pick due on"
@@ -79,8 +74,22 @@ def get_draft_status():
                 try:
                     parts = extracted_text.split(anchor)
                     who_is_on_clock = parts[0].strip()
-                    date_string = parts[1].strip().strip('.')
-                    
+                    # date_string_raw is now " 11/15/2025 at 3:16 AM PST.Note, auto picks..."
+                    date_string_raw = parts[1].strip() 
+
+                    # --- NEW FIX: Isolate the date string ---
+                    date_part = ""
+                    if "PST" in date_string_raw:
+                        end_index = date_string_raw.find("PST") + 3
+                        date_part = date_string_raw[:end_index].strip().strip('.')
+                    elif "PDT" in date_string_raw:
+                        end_index = date_string_raw.find("PDT") + 3
+                        date_part = date_string_raw[:end_index].strip().strip('.')
+                    else:
+                        # Fallback if no timezone is found
+                        date_part = date_string_raw.strip().strip('.')
+                    # --- END NEW FIX ---
+
                     # --- NEW LOGIC FOR TAGGING ---
                     team_owner_string = who_is_on_clock.removesuffix(' are on the clock.').strip()
                     
@@ -99,7 +108,8 @@ def get_draft_status():
                     # --- END NEW LOGIC ---
                     
                     # --- ROBUST TIMEZONE FIX START ---
-                    date_part = date_string.removesuffix('PST').removesuffix('PDT').strip()
+                    # We now use the clean 'date_part'
+                    date_part = date_part.removesuffix('PST').removesuffix('PDT').strip()
                     pacific_tz = gettz("America/Los_Angeles")
                     naive_dt = parse(date_part)
                     aware_dt = naive_dt.replace(tzinfo=pacific_tz)
