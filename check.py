@@ -2,7 +2,7 @@ import requests
 import os
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
-from dateutil.tz import gettz # <--- NEW IMPORT for Timezone Assignment
+from dateutil.tz import gettz
 import datetime
 import re 
 
@@ -46,7 +46,6 @@ TEAM_NAME_MAP = {
     "Rangers": "<@&622613054642978817>",
     "Blue Jays": "<@&622615298322989070>",
     "Nationals": "<@&1180930959642722404>",
-    # ... add all 30 teams here ...
 }
 # --- End Configuration ---
 
@@ -64,16 +63,18 @@ def get_draft_status():
             
             # --- Start of logic ---
             start_marker = "is currently open."
-            end_marker = "Note, auto picks"
             
             start_index = full_text.find(start_marker)
-            end_index = full_text.find(end_marker)
             
-            if start_index == -1 or end_index == -1:
-                print("Warning: Could not find markers, sending full text.")
+            # --- MODIFIED LOGIC HERE ---
+            # If we can't find the start marker, fail.
+            if start_index == -1:
+                print("Warning: Could not find start marker, sending full text.")
                 return full_text
             
-            extracted_text = full_text[start_index + len(start_marker) : end_index].strip()
+            # We no longer need an end_marker. We'll parse everything AFTER the start_marker.
+            extracted_text = full_text[start_index + len(start_marker) :].strip()
+            # extracted_text is now: "The Reds (pantherking21) are on the clock.Next pick due on 11/14/2025 at 8:55 AM PST."
             
             anchor = "Next pick due on"
             if anchor in extracted_text:
@@ -83,11 +84,8 @@ def get_draft_status():
                     date_string = parts[1].strip().strip('.')
                     
                     # --- NEW LOGIC FOR TAGGING ---
-                    # 1. Isolate the full team/owner string
-                    #    e.g., "The Giants (bigdaddybrett05) are on the clock."
                     team_owner_string = who_is_on_clock.removesuffix(' are on the clock.').strip()
                     
-                    # 2. Extract parts
                     prefix = ""
                     if team_owner_string.startswith("The "):
                         prefix = "The "
@@ -95,14 +93,10 @@ def get_draft_status():
                     owner_handle_match = re.search(r'\((.*?)\)', team_owner_string)
                     owner_handle_display = ""
                     if owner_handle_match:
-                        owner_handle_display = owner_handle_match.group(0) # e.g., "(bigdaddybrett05)"
+                        owner_handle_display = owner_handle_match.group(0)
 
-                    # 3. Get the clean team name
-                    #    "The Giants (bigdaddybrett05)" -> "Giants"
                     team_name = team_owner_string.removeprefix(prefix).removesuffix(owner_handle_display).strip()
 
-                    # 4. Look up the Role ID
-                    #    If "Giants" is in the map, use the ID. If not, use plain text.
                     mention = TEAM_NAME_MAP.get(team_name, f"@{team_name}")
                     # --- END NEW LOGIC ---
                     
