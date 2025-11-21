@@ -1,2 +1,1 @@
-The <@&622615936234684416> (sammy-z) are on the clock!
-Next pick due: <t:1763689680:f>
+Draft status div not found.
