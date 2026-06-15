@@ -1,1 +1,2 @@
-Draft status div not found.
+The @Class (No owner) are on the clock!
+Next pick due: <t:1781577060:f>
